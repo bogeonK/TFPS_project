@@ -15,6 +15,7 @@ public class Player : MonoBehaviour
 
     Rigidbody rb; // 플레이어의 Rigidbody 컴포넌트
 
+
     // Start is called before the first frame update
     void Awake()
     {

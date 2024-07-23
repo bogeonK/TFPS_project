@@ -12,7 +12,8 @@ GameObject:
   - component: {fileID: 6155604286692681987}
   - component: {fileID: 2679445496311713166}
   - component: {fileID: 4014188716332960986}
-  - component: {fileID: 5616990913198504244}
+  - component: {fileID: 3522715027080293805}
+  - component: {fileID: -5086356524994406779}
   - component: {fileID: 3096562435522798649}
   - component: {fileID: -4102195169108250518}
   - component: {fileID: 7944660990584027890}
@@ -112,7 +113,7 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &5616990913198504244
+--- !u!114 &3522715027080293805
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -125,7 +126,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 5
-  jumpPower: 4
+  jumpPower: 5
+--- !u!114 &-5086356524994406779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 726685469081760790}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adde43fa352071d4c83b4983c37a4551, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shootEffectPref: {fileID: 4376073404065053576, guid: b218004c7ed13b34991dd2d8f2ffac7a, type: 3}
 --- !u!54 &3096562435522798649
 Rigidbody:
   m_ObjectHideFlags: 0
