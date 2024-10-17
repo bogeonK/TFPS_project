@@ -126,7 +126,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 5
+  runningSpeed: 11.5
   jumpPower: 5
+  lookSpeed: 2
+  lookXLimit: 45
+  laserLength: 10
+  laserColor: {r: 1, g: 0, b: 0, a: 1}
+  cameraYOffset: 1.2
 --- !u!114 &-5086356524994406779
 MonoBehaviour:
   m_ObjectHideFlags: 0

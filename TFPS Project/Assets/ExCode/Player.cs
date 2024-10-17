@@ -1,82 +1,182 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun;
 
-public class Player : MonoBehaviour
+public class PlayerController : MonoBehaviourPunCallbacks
 {
-    // 이동 속도
-    public float moveSpeed;
-    public float jumpPower; // 점프하는 힘
+    [Header("Base setup")]
+    public float moveSpeed = 7.5f;
+    public float runningSpeed = 11.5f;
+    public float jumpPower = 8.0f;
+    public float lookSpeed = 2.0f;
+    public float lookXLimit = 45.0f;
 
-    PhotonView pv;  // 플레이어의 PhotonView 컴포넌트
+    [Header("Laser Setup")]
+    public float laserLength = 10f;
+    public Color laserColor = Color.red;
 
-    int jumpCount; // 점프 횟수
+    private Rigidbody rb;
+    private Camera playerCamera;
+    private PhotonView pv;
+    private LineRenderer laserLine;
 
-    Rigidbody rb; // 플레이어의 Rigidbody 컴포넌트
+    private int jumpCount = 0;
+    private float rotationX = 0;
+    private PlayerController otherPlayer;
 
+    [SerializeField]
+    private float cameraYOffset = 1.2f;
 
-    // Start is called before the first frame update
+    private bool isViewingOther = false;
+
     void Awake()
     {
-        // 플레이어의 Rigidbody,PhotonView 컴포넌트를 가져와서 저장
         rb = GetComponent<Rigidbody>();
         pv = GetComponent<PhotonView>();
 
-        // 내 캐릭터 일때만 실행
+        playerCamera = new GameObject("PlayerCamera").AddComponent<Camera>();
+        playerCamera.transform.SetParent(transform);
+        playerCamera.transform.localPosition = new Vector3(0, cameraYOffset, 0);
+
         if (pv.IsMine)
         {
-            // Main Camera 검색해서 가져오기
-            Transform camera = Camera.main.transform;
+            playerCamera.gameObject.SetActive(true);
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+        else
+        {
+            playerCamera.gameObject.SetActive(false);
+        }
 
-            // Main Camera의 부모를 나로 설정
-            camera.SetParent(transform);
+        // LineRenderer 설정
+        laserLine = gameObject.AddComponent<LineRenderer>();
+        laserLine.startWidth = 0.05f;
+        laserLine.endWidth = 0.05f;
+        laserLine.material = new Material(Shader.Find("Sprites/Default"));
+        laserLine.startColor = laserColor;
+        laserLine.endColor = laserColor;
+        laserLine.positionCount = 2;
+    }
 
-            // 나를 기준으로 적당한 위치로 이동
-            camera.localPosition = new Vector3(0, 1.2f, 0.4f);
+    void Update()
+    {
+        if (pv.IsMine)
+        {
+            HandleMovement();
+            HandleMouseInput();
+            UpdateLaserLine();
+
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                ToggleView();
+            }
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    private void HandleMovement()
     {
-        // 내 캐릭터가 아니라면 함수를 탈출하여 아래 코드 실행 불가
-        if (!pv.IsMine) return;
-
-        // 방향키 또는 WASD키 입력을 숫자로 받아서 저장
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
+        bool isRunning = Input.GetKey(KeyCode.LeftShift);
 
-        // x축에서  h의 값을, z축에는 v의 값을 넣은 변수 생성
-        Vector3 dir = new Vector3(h, 0, v);
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
 
-        // 모든 방향의 속도가 동일하도록 정규화
-        dir.Normalize();
+        Vector3 moveDirection = forward * v + right * h;
+        moveDirection.Normalize();
 
-        // 이동할 방향에 원하는 속도 곱하기 (모든 기기에서 동일한 속도)
-        // transform.position += dir * moveSpeed * Time.deltaTime;
+        float currentSpeed = isRunning ? runningSpeed : moveSpeed;
+        rb.MovePosition(rb.position + moveDirection * currentSpeed * Time.deltaTime);
 
-        // 물리 작용을 이용해 적용
-        rb.MovePosition(rb.position + (dir * moveSpeed * Time.deltaTime)); 
-
-        // Space 키를 누를 때, 점프한 횟수가 2회 미만
         if (Input.GetKey(KeyCode.Space) && jumpCount < 2)
         {
-            // 위로 힘 발생
             rb.AddForce(Vector3.up * jumpPower, ForceMode.Impulse);
-
-            // 점프할 때마다 점프 횟수 증가
             jumpCount++;
         }
     }
 
-    // 어떤 물체와 충돌을 시작한 순간에 호출
+    private void HandleMouseInput()
+    {
+        float mouseY = -Input.GetAxis("Mouse Y") * lookSpeed;
+        rotationX += mouseY;
+        rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
+        playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
+
+        float mouseX = Input.GetAxis("Mouse X") * lookSpeed;
+        transform.rotation *= Quaternion.Euler(0, mouseX, 0);
+
+        // 시점 변경 중에도 자신의 캐릭터 회전을 네트워크로 동기화
+        photonView.RPC("SyncRotation", RpcTarget.All, rotationX, transform.rotation);
+    }
+
+    [PunRPC]
+    private void SyncRotation(float rotX, Quaternion bodyRotation)
+    {
+        if (!pv.IsMine)
+        {
+            rotationX = rotX;
+            playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
+            transform.rotation = bodyRotation;
+        }
+    }
+
+    private void UpdateLaserLine()
+    {
+        Vector3 start = playerCamera.transform.position;
+        Vector3 end = start + playerCamera.transform.forward * laserLength;
+
+        laserLine.SetPosition(0, start);
+        laserLine.SetPosition(1, end);
+
+        // 레이저 라인 정보를 네트워크로 동기화
+        photonView.RPC("SyncLaserLine", RpcTarget.All, start, end);
+    }
+
+    [PunRPC]
+    private void SyncLaserLine(Vector3 start, Vector3 end)
+    {
+        laserLine.SetPosition(0, start);
+        laserLine.SetPosition(1, end);
+    }
+
+    private void ToggleView()
+    {
+        isViewingOther = !isViewingOther;
+
+        if (isViewingOther)
+        {
+            // 다른 플레이어 찾기
+            PlayerController[] players = FindObjectsOfType<PlayerController>();
+            foreach (PlayerController player in players)
+            {
+                if (player != this)
+                {
+                    otherPlayer = player;
+                    break;
+                }
+            }
+
+            if (otherPlayer != null)
+            {
+                playerCamera.gameObject.SetActive(false);
+                otherPlayer.playerCamera.gameObject.SetActive(true);
+                // 레이저 라인은 계속 활성화 상태를 유지합니다.
+            }
+        }
+        else
+        {
+            playerCamera.gameObject.SetActive(true);
+            if (otherPlayer != null)
+            {
+                otherPlayer.playerCamera.gameObject.SetActive(false);
+            }
+        }
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
-        // 충돌한 물체의 태그가 "Ground"
-        if(collision.gameObject.tag == "Ground")
+        if (collision.gameObject.CompareTag("Ground"))
         {
-            //  점프 횟수 초기화
             jumpCount = 0;
         }
     }
