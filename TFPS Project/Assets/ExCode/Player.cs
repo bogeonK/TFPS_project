@@ -1,5 +1,6 @@
 using UnityEngine;
 using Photon.Pun;
+using System.Collections;
 
 public class PlayerController : MonoBehaviourPunCallbacks
 {
@@ -27,6 +28,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
     private float cameraYOffset = 1.2f;
 
     private bool isViewingOther = false;
+    private bool hasViewSwitched = false;
+    private float viewSwitchDelay = 5f;
 
     void Awake()
     {
@@ -42,6 +45,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
             playerCamera.gameObject.SetActive(true);
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+            StartCoroutine(AutoSwitchViewAfterDelay());
         }
         else
         {
@@ -65,11 +69,6 @@ public class PlayerController : MonoBehaviourPunCallbacks
             HandleMovement();
             HandleMouseInput();
             UpdateLaserLine();
-
-            if (Input.GetKeyDown(KeyCode.C))
-            {
-                ToggleView();
-            }
         }
     }
 
@@ -139,6 +138,16 @@ public class PlayerController : MonoBehaviourPunCallbacks
         laserLine.SetPosition(1, end);
     }
 
+    private IEnumerator AutoSwitchViewAfterDelay()
+    {
+        yield return new WaitForSeconds(viewSwitchDelay);
+        if (!hasViewSwitched)
+        {
+            ToggleView();
+            hasViewSwitched = true;
+        }
+    }
+
     private void ToggleView()
     {
         isViewingOther = !isViewingOther;
@@ -171,6 +180,15 @@ public class PlayerController : MonoBehaviourPunCallbacks
                 otherPlayer.playerCamera.gameObject.SetActive(false);
             }
         }
+
+        // 시점 전환 시 네트워크로 동기화
+        photonView.RPC("SyncViewToggle", RpcTarget.All, isViewingOther);
+    }
+
+    [PunRPC]
+    private void SyncViewToggle(bool isViewing)
+    {
+        isViewingOther = isViewing;
     }
 
     private void OnCollisionEnter(Collision collision)

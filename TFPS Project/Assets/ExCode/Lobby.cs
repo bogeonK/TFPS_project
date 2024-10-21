@@ -1,27 +1,28 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;   // UI °ü·Ã Å¬·¡½º¸¦ »ç¿ëÇÏ±â À§ÇÔ
-using Photon.Pun;       // Æ÷Åæ °ü·Ã Å¬·¡½º¸¦ »ç¿ë
-using Photon.Realtime;  // ¹æ ¼³Á¤ °ü·Ã Å¬·¡½º¸¦ »ç¿ëÇÏ±â À§ÇÔ
+using UnityEngine.UI;
+using Photon.Pun;
+using Photon.Realtime;
+using System.Collections.Generic;
 
-public class Lobby : MonoBehaviourPunCallbacks  // Æ÷Åæ °ü·Ã ÄÝ¹é ÇÔ¼ö¸¦ »ç¿ëÇÏ±â À§ÇÔ
+public class Lobby : MonoBehaviourPunCallbacks
 {
     public InputField roomNameInput;    // ¹æ ÀÌ¸§ ÀÔ·Â¶õ
-    public Button createBtn;            // ¹æ »ý¼º ¹öÆ°
+    public Button createBtn; // ¹æ »ý¼º ¹öÆ°
     public Text connectInfoTxt;         // ¿¬°á ÇöÈ² ÅØ½ºÆ®
     public Transform content;           // ¹æ ¸ñ·ÏÀ» Ãâ·ÂÇÒ Scroll ViewÀÇ Content
     public GameObject roomBtnPref;      // ¹æ Âü°¡ ¹öÆ°
+    public Text playerCountText;        // ÇÃ·¹ÀÌ¾î ¼ö Ç¥½Ã ÅØ½ºÆ®
+    
+
 
     // Á¸ÀçÇÏ´Â ¸ðµç ¹æÀ» °ü¸®ÇÏ´Â ¸®½ºÆ®
     List<RoomInfo> allRoomList = new List<RoomInfo>();
 
-    // Start is called before the first frame update
     void Start()
     {
         // »ý¼º ¹öÆ°ÀÇ OnClick() ÇÔ¼ö¿¡ OnClickCreate() ÇÔ¼ö ¿¬°á
         createBtn.onClick.AddListener(OnClickCreate);
-
+        PhotonNetwork.AutomaticallySyncScene = true;
     }
 
     // »ý¼º ¹öÆ° ´©¸£¸é È£Ãâ
@@ -42,7 +43,6 @@ public class Lobby : MonoBehaviourPunCallbacks  // Æ÷Åæ °ü·Ã ÄÝ¹é ÇÔ¼ö¸¦ »ç¿ëÇÏ±
         // »ç¿ëÀÚ°¡ ÀÔ·ÂÇÑ ¹æ ÀÌ¸§°ú ¹æ ¿É¼ÇÀ¸·Î ¹æ »ý¼º ½Ãµµ
         PhotonNetwork.CreateRoom(roomNameInput.text, roomOptions);
         connectInfoTxt.text = "¹æ »ý¼º Áß...";
-
     }
 
     // Âü°¡ ¹öÆ° ´©¸£¸é È£Ãâ
@@ -66,15 +66,37 @@ public class Lobby : MonoBehaviourPunCallbacks  // Æ÷Åæ °ü·Ã ÄÝ¹é ÇÔ¼ö¸¦ »ç¿ëÇÏ±
         {
             roomBtns.interactable = isOn;
         }
-
     }
 
     // ¹æ Á¢¼Ó¿¡ ¼º°øÇÏ¸é È£Ãâ
     public override void OnJoinedRoom()
     {
-        // PlaySceneÀÌ¶ó´Â ÀÌ¸§ÀÇ ¾À ºÒ·¯¿À±â(¾À ÀüÈ¯)
+        connectInfoTxt.text = "¹æ Á¢¼Ó ¼º°ø! ´Ù¸¥ ÇÃ·¹ÀÌ¾î ±â´Ù¸®´Â Áß...";
+
+        // ¹æ¿¡ µÎ ¸íÀÇ ÇÃ·¹ÀÌ¾î°¡ ¸ð¿´´ÂÁö È®ÀÎ
+        if (PhotonNetwork.CurrentRoom.PlayerCount == 2)
+        {
+            if (PhotonNetwork.IsMasterClient)
+            {
+                StartGame();
+            }
+        }
+    }
+
+    // ´Ù¸¥ ÇÃ·¹ÀÌ¾î°¡ ¹æ¿¡ µé¾î¿ÔÀ» ¶§ È£Ãâ
+    public override void OnPlayerEnteredRoom(Player newPlayer)
+    {
+
+        if (PhotonNetwork.CurrentRoom.PlayerCount == 2 && PhotonNetwork.IsMasterClient)
+        {
+            StartGame();
+        }
+    }
+
+    private void StartGame()
+    {
+        connectInfoTxt.text = "°ÔÀÓÀ» ½ÃÀÛÇÕ´Ï´Ù!";
         PhotonNetwork.LoadLevel("PlayScene");
-        connectInfoTxt.text = "¹æ Á¢¼Ó ¼º°ø!";
     }
 
     // ¹æ »ý¼º ½ÇÆÐ ½Ã, È£Ãâ
@@ -94,11 +116,9 @@ public class Lobby : MonoBehaviourPunCallbacks  // Æ÷Åæ °ü·Ã ÄÝ¹é ÇÔ¼ö¸¦ »ç¿ëÇÏ±
             // ÀüÃ¼ ¹æ ¸®½ºÆ®¿¡ ÀÌ¹Ì ÀÖ´ø ¹æÀÌ¶ó¸é »ç¶óÁø ¹æÀÌ¹Ç·Î »èÁ¦
             if (allRoomList.Contains(changedRoom))
                 allRoomList.Remove(changedRoom);
-
             // ÀüÃ¼ ¹æ ¸®½ºÆ®¿¡ ¾ø´ø ¹æÀÌ¶ó¸é »ý¼ºµÈ ¹æÀÌ¹Ç·Î Ãß°¡
             else
                 allRoomList.Add(changedRoom);
-            
         }
 
         // ¹æ ¸ñ·Ï UI ÃÊ±âÈ­¸¦ À§ÇÑ ¹Ýº¹
@@ -120,8 +140,6 @@ public class Lobby : MonoBehaviourPunCallbacks  // Æ÷Åæ °ü·Ã ÄÝ¹é ÇÔ¼ö¸¦ »ç¿ëÇÏ±
 
             // Âü°¡ ¹öÆ°ÀÇ OnClick()ÇÔ¼ö¿¡ OnClickJoin() ÇÔ¼ö ¿¬°á ¹× ¹æÀÇ ÀÌ¸§ Àü´Þ
             roomBtn.GetComponent<Button>().onClick.AddListener(() => OnClickJoin(room.Name));
-
         }
     }
-
 }

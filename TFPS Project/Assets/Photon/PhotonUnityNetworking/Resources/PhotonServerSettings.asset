@@ -44,6 +44,11 @@ MonoBehaviour:
   - SendMouseMovement
   - SyncRotation
   - SyncLaserLine
+  - StartViewSwitchCountdown
+  - SwitchViewRPC
+  - SyncToggleView
+  - ToggleViewRPC
+  - SyncViewToggle
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1
